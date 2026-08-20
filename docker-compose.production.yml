@@ -31,8 +31,9 @@ services:
     container_name: foodgram-front
     env_file:
       - .env
+    command: cp -r /app/result_build/. /static_value/
     volumes:
-      - static_value:/app/result_build/
+      - static_value:/static_value
 
   nginx:
     image: igorpanda/foodgram_gateway:latest
