@@ -15,7 +15,7 @@ services:
       - .env
 
   backend:
-    image: ${DOCKER_USERNAME}/foodgram_backend:latest
+    image: igorpanda/foodgram_backend:latest
     container_name: foodgram-backend
     restart: always
     volumes:
@@ -27,7 +27,7 @@ services:
       - .env
 
   frontend:
-    image: ${DOCKER_USERNAME}/foodgram_frontend:latest
+    image: igorpanda/foodgram_frontend:latest
     container_name: foodgram-front
     env_file:
       - .env
@@ -35,7 +35,7 @@ services:
       - static_value:/app/result_static/
 
   nginx:
-    image: ${DOCKER_USERNAME}/foodgram_gateway:latest
+    image: $igorpanda/foodgram_gateway:latest
     container_name: foodgram-proxy
     ports:
       - "8000:80"
