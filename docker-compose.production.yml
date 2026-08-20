@@ -32,7 +32,7 @@ services:
     env_file:
       - .env
     volumes:
-      - static_value:/app/result_static/
+      - static_value:/app/result_build/
 
   nginx:
     image: igorpanda/foodgram_gateway:latest
