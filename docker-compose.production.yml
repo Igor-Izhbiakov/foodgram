@@ -35,7 +35,7 @@ services:
       - static_value:/app/result_static/
 
   nginx:
-    image: $igorpanda/foodgram_gateway:latest
+    image: igorpanda/foodgram_gateway:latest
     container_name: foodgram-proxy
     ports:
       - "8000:80"
