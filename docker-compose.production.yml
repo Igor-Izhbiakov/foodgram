@@ -19,7 +19,7 @@ services:
     container_name: foodgram-backend
     restart: always
     volumes:
-      - static_value:/app/static/
+      - static_value:/backend_static
       - media_value:/app/media/
     depends_on:
       - db
@@ -41,7 +41,7 @@ services:
     ports:
       - "8000:80"
     volumes:
-      - static_value:/usr/share/nginx/html/
+      - static_value:/staticfiles/ 
       - media_value:/app/media/
     depends_on:
       - backend
