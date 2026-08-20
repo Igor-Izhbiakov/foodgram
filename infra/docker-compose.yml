@@ -39,7 +39,7 @@ services:
       - static_value:/app/result_static/
 
   nginx:
-    image: nginx:1.25.4-alpine
+    image: ${DOCKER_USERNAME}/foodgram_gateway:latest 
     container_name: foodgram-proxy-local
     ports:
       - "8000:80"
