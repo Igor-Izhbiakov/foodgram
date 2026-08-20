@@ -56,11 +56,10 @@ jobs:
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/foodgram_frontend:latest
 
-      - name: Push Gateway (Your Nginx) to DockerHub
+      - name: Push Gateway to DockerHub
         uses: docker/build-push-action@v4
         with:
-          context: ./
-          file: ./Dockerfile_gateway
+          context: ./infra/
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/foodgram_gateway:latest
 
