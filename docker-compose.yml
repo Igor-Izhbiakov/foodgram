@@ -1,47 +1,48 @@
-version: '3.8'
-
 volumes:
-  pg_data:
-  static_value:
-  media_value:
+  pg_data_dev:
+  django_static_dev:
+  react_static_dev:
+  media_value_dev:
 
 services:
   db:
     image: postgres:15-alpine
-    container_name: foodgram-db
+    container_name: foodgram-db-dev
     volumes:
-      - pg_data:/var/lib/postgresql/data
+      - pg_data_dev:/var/lib/postgresql/data
     env_file:
       - .env
 
   backend:
-    image: igorpanda/foodgram_backend:latest
-    container_name: foodgram-backend
-    restart: always
+    build: ./backend/
+    container_name: foodgram-backend-dev
     volumes:
-      - static_value:/app/static/
-      - media_value:/app/media/
+      - django_static_dev:/backend_static/
+      - media_value_dev:/app/media/
+      - ./backend/:/app/ 
     depends_on:
       - db
     env_file:
       - .env
 
   frontend:
-    image: igorpanda/foodgram_frontend:latest
-    container_name: foodgram-front
+    build: ./frontend/
+    container_name: foodgram-front-dev
     env_file:
       - .env
+    command: cp -r /app/build/. /frontend_static/
     volumes:
-      - static_value:/app/result_build/
+      - react_static_dev:/frontend_static/
 
   nginx:
-    image: igorpanda/foodgram_gateway:latest
-    container_name: foodgram-proxy
+    build: ./gateway/
+    container_name: foodgram-proxy-dev
     ports:
       - "8000:80"
     volumes:
-      - static_value:/usr/share/nginx/html/
-      - media_value:/app/media/
+      - django_static_dev:/django_static/
+      - react_static_dev:/react_static/ 
+      - media_value_dev:/app/media/
     depends_on:
       - backend
       - frontend
