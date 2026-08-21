@@ -26,8 +26,9 @@ ALLOWED_HOSTS = [
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    'http://duckdns.org',
-    'https://duckdns.org',
+    'http://yourfoodgram.duckdns.org',
+    'https://yourfoodgram.duckdns.org',
+    'http://158.160.193.212',
 ]
 
 # Application definition
