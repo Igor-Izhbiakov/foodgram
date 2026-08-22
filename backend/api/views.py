@@ -1,4 +1,4 @@
-from django.db.models import Sum
+from django.db.models import Count, Prefetch, Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
@@ -76,20 +76,33 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     def add_to_list(self, model, user, pk):
         """Вспомогательный метод для добавления рецепта в списки."""
-        recipe = get_object_or_404(Recipe, id=pk)
-        if model.objects.filter(user=user, recipe=recipe).exists():
+        if not Recipe.objects.filter(id=pk).exists():
+            return Response(
+                {'errors': 'Рецепт не найден.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if model.objects.filter(user=user, recipe_id=pk).exists():
             return Response(
                 {'errors': 'Рецепт уже добавлен в этот список!'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        model.objects.create(user=user, recipe=recipe)
+
+        model.objects.create(user=user, recipe_id=pk)
+
+        recipe = Recipe.objects.get(id=pk)
         serializer = RecipeShortSerializer(recipe)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def remove_from_list(self, model, user, pk):
         """Вспомогательный метод для удаления рецепта из списков."""
-        recipe = get_object_or_404(Recipe, id=pk)
-        obj = model.objects.filter(user=user, recipe=recipe)
+        if not Recipe.objects.filter(id=pk).exists():
+            return Response(
+                {'errors': 'Рецепт не найден.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        obj = model.objects.filter(user=user, recipe_id=pk)
         if not obj.exists():
             return Response(
                 {'errors': 'Рецепта нет в этом списке!'},
@@ -162,6 +175,22 @@ class RecipeViewSet(viewsets.ModelViewSet):
         )
         return response
 
+    @action(
+        detail=True,
+        methods=['get'],
+        url_path='get-link',
+        permission_classes=[AllowAny]
+    )
+    def get_link(self, request, pk):
+        """Получить короткую ссылку на рецепт."""
+        if not Recipe.objects.filter(id=pk).exists():
+            return Response(
+                {'errors': 'Рецепт не найден.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        short_link = request.build_absolute_uri(f'/s/{pk}')
+        return Response({'short-link': short_link}, status=status.HTTP_200_OK)
+
 
 class CustomUserViewSet(UserViewSet):
     """Вьюсет для работы с пользователями, подписками и аватарами."""
@@ -185,7 +214,11 @@ class CustomUserViewSet(UserViewSet):
         user = request.user
         authors = User.objects.filter(
             following__user=user
-        ).prefetch_related('recipes')
+        ).annotate(
+            recipes_count_db=Count('recipes')
+        ).prefetch_related(
+            Prefetch('recipes', queryset=Recipe.objects.all())
+        )
 
         page = self.paginate_queryset(authors)
 
@@ -200,7 +233,8 @@ class CustomUserViewSet(UserViewSet):
 
             author_data['recipes'] = RecipeShortSerializer(
                 recipes,
-                many=True
+                many=True,
+                context={'request': request}
             ).data
             author_data['recipes_count'] = author.recipes.count()
             results.append(author_data)
@@ -234,9 +268,13 @@ class CustomUserViewSet(UserViewSet):
 
             author_data = self.get_serializer(author).data
             recipes = author.recipes.all()
+            recipes_limit = request.query_params.get('recipes_limit')
+            if recipes_limit and recipes_limit.isdigit():
+                recipes = recipes[:int(recipes_limit)]
             author_data['recipes'] = RecipeShortSerializer(
                 recipes,
-                many=True
+                many=True,
+                context={'request': request}
             ).data
             author_data['recipes_count'] = author.recipes.count()
             return Response(author_data, status=status.HTTP_201_CREATED)

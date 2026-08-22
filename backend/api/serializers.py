@@ -5,7 +5,9 @@ from drf_extra_fields.fields import Base64ImageField
 from recipes.models import Ingredient, Recipe, RecipeIngredient, Tag
 from rest_framework import serializers
 
-from api.validators import validate_ingredients_list, validate_tags_list
+from api.validators import (
+    RecipeFieldsValidator,
+)
 from users.models import Follow
 
 User = get_user_model()
@@ -141,9 +143,13 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
     ingredients = RecipeIngredientWriteSerializer(many=True)
     tags = serializers.PrimaryKeyRelatedField(
         queryset=Tag.objects.all(),
-        many=True
+        many=True,
     )
-    image = Base64ImageField()
+    image = Base64ImageField(
+        required=True,
+        allow_null=False,
+        allow_empty_file=False
+    )
 
     class Meta:
         model = Recipe
@@ -151,27 +157,31 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
             'ingredients', 'tags', 'image', 'name',
             'text', 'cooking_time', 'author'
         )
-
-    def validate_ingredients(self, value):
-        """Запуск внешнего валидатора для проверки ингредиентов."""
-        return validate_ingredients_list(value)
-
-    def validate_tags(self, value):
-        """Запуск внешнего валидатора для проверки тегов."""
-        return validate_tags_list(value)
+        validators = [RecipeFieldsValidator()]
 
     def create_ingredients_amounts(self, ingredients, recipe):
         """Доп метод для записи ингредиентов в связующую таблицу."""
         RecipeIngredient.objects.bulk_create(
-            [RecipeIngredient(
-                recipe=recipe,
-                ingredient_id=ingredient.get('id'),
-                amount=ingredient.get('amount')
-            ) for ingredient in ingredients]
+            [
+                RecipeIngredient(
+                    recipe=recipe,
+                    ingredient_id=(
+                        ing.get('id')
+                        if isinstance(ing, dict)
+                        else getattr(ing, 'id', ing)
+                    ),
+                    amount=(
+                        ing.get('amount')
+                        if isinstance(ing, dict)
+                        else getattr(ing, 'amount', None)
+                    ),
+                )
+                for ing in ingredients
+            ]
         )
 
     def create(self, validated_data):
-        """Создание рецепта с ручным сохранением тегов и ингредиентов."""
+        """Создание рецепта с сохранением тегов и ингредиентов."""
         ingredients = validated_data.pop('ingredients')
         tags = validated_data.pop('tags')
 
@@ -193,7 +203,7 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
             instance.tags.set(tags)
 
         if ingredients is not None:
-            RecipeIngredient.objects.filter(recipe=instance).delete()
+            instance.recipe_ingredients.all().delete()
             self.create_ingredients_amounts(ingredients, instance)
 
         return instance
@@ -206,6 +216,17 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
 class RecipeShortSerializer(serializers.ModelSerializer):
     """Компактный сериализатор рецепта для показа в покупах и подписках."""
 
+    image = serializers.SerializerMethodField()
+
     class Meta:
         model = Recipe
         fields = ('id', 'name', 'image', 'cooking_time')
+
+    def get_image(self, obj):
+        """Возвращает абсолютную ссылку на картинку в виде строки."""
+        request = self.context.get('request')
+        if obj.image:
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url
+        return ""
