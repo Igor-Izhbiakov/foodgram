@@ -10,4 +10,4 @@ def redirect_short_link(request, pk):
         Recipe.objects.get(id=pk)
         return redirect(f'/recipes/{pk}/')
     except Recipe.DoesNotExist:
-        return redirect(f'/recipes/{pk}/')
+        return redirect('/404')
