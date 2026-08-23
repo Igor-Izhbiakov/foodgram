@@ -3,22 +3,28 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
+from users.constants import (
+    USER_EMAIL_MAX_LENGTH,
+    USER_FIRST_NAME_MAX_LENGTH,
+    USER_LAST_NAME_MAX_LENGTH,
+)
+
 
 class User(AbstractUser):
     """Кастомная модель пользователя с авторизацией по email."""
     email = models.EmailField(
         'Адрес электронной почты',
-        max_length=254,
+        max_length=USER_EMAIL_MAX_LENGTH,
         unique=True,
         db_index=True
     )
     first_name = models.CharField(
         'Имя',
-        max_length=150
+        max_length=USER_FIRST_NAME_MAX_LENGTH
     )
     last_name = models.CharField(
         'Фамилия',
-        max_length=150
+        max_length=USER_LAST_NAME_MAX_LENGTH
     )
     avatar = models.ImageField(
         'Аватар',
@@ -31,7 +37,7 @@ class User(AbstractUser):
     REQUIRED_FIELDS = ['username', 'first_name', 'last_name']
 
     class Meta:
-        ordering = ['id']
+        ordering = ['username']
         verbose_name = 'Пользователь'
         verbose_name_plural = 'Пользователи'
 
@@ -61,6 +67,10 @@ class Follow(models.Model):
             models.UniqueConstraint(
                 fields=['user', 'author'],
                 name='unique_user_author'
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(user=models.F('author')),
+                name='prevent_self_follow'
             )
         ]
 

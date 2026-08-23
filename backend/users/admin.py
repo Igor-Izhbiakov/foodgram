@@ -1,8 +1,12 @@
 """Настройка административной панели для приложения users."""
 
 from django.contrib import admin
+from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
-from users.models import Follow, User
+
+from users.models import Follow
+
+User = get_user_model()
 
 
 @admin.register(User)

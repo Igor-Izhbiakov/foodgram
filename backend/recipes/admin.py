@@ -12,6 +12,31 @@ from recipes.models import (
 )
 
 
+# Тут решил создать базовую модель для TagAdmin и IngredientAdmin
+class BaseRecipeCountAdmin(admin.ModelAdmin):
+    """Базовый класс для моделей, отображающих кол-во связанных рецептов."""
+
+    def get_queryset(self, request):
+        """Аннотирует кверисет количеством связанных рецептов."""
+        return super().get_queryset(request).annotate(
+            recipes_count=Count('recipes')
+        )
+
+    @admin.display(description='Кол-во рецептов', ordering='recipes_count')
+    def get_recipes_count(self, obj):
+        """Возвращает число связанных рецептов."""
+        return obj.recipes_count
+
+
+# И тут тоже сделал базовую модель для FavoriteAdmin и ShoppingCartAdmin
+class BaseUserRecipeAdmin(admin.ModelAdmin):
+    """Базовый класс для оптимизации запросов Избранного и Списков покупок."""
+
+    def get_queryset(self, request):
+        """Оптимизация запросов: предзагрузка связанных объектов."""
+        return super().get_queryset(request).select_related('user', 'recipe')
+
+
 class RecipeIngredientInline(admin.TabularInline):
     """Позволяет добавлять ингредиенты прямо на странице рецепта."""
 
@@ -21,18 +46,18 @@ class RecipeIngredientInline(admin.TabularInline):
 
 
 @admin.register(Tag)
-class TagAdmin(admin.ModelAdmin):
+class TagAdmin(BaseRecipeCountAdmin):
     """Управление тегами в админке."""
 
-    list_display = ('id', 'name', 'slug')
+    list_display = ('id', 'name', 'slug', 'get_recipes_count')
     search_fields = ('name', 'slug')
 
 
 @admin.register(Ingredient)
-class IngredientAdmin(admin.ModelAdmin):
+class IngredientAdmin(BaseRecipeCountAdmin):
     """Управление ингредиентами с быстрым поиском по названию."""
 
-    list_display = ('id', 'name', 'measurement_unit')
+    list_display = ('id', 'name', 'measurement_unit', 'get_recipes_count')
     search_fields = ('name',)
 
 
@@ -62,24 +87,16 @@ class RecipeAdmin(admin.ModelAdmin):
 
 
 @admin.register(Favorite)
-class FavoriteAdmin(admin.ModelAdmin):
+class FavoriteAdmin(BaseUserRecipeAdmin):
     """Администрирование избранных рецептов."""
 
     list_display = ('id', 'user', 'recipe')
     search_fields = ('user__username', 'recipe__name')
 
-    def get_queryset(self, request):
-        """Оптимизация запросов для списка избранного."""
-        return super().get_queryset(request).select_related('user', 'recipe')
-
 
 @admin.register(ShoppingCart)
-class ShoppingCartAdmin(admin.ModelAdmin):
+class ShoppingCartAdmin(BaseUserRecipeAdmin):
     """Администрирование списков покупок."""
 
     list_display = ('id', 'user', 'recipe')
     search_fields = ('user__username', 'recipe__name')
-
-    def get_queryset(self, request):
-        """Оптимизация запросов для списка корзины покупок."""
-        return super().get_queryset(request).select_related('user', 'recipe')
