@@ -3,7 +3,7 @@
 from django.contrib.auth import get_user_model
 from django.db.models import Count, Exists, OuterRef, Prefetch, Sum
 from django.http import HttpResponse
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
 from rest_framework import status, viewsets
@@ -302,3 +302,9 @@ class FoodgramUserViewSet(UserViewSet):
         user.avatar = None
         user.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+def redirect_short_link(request, pk):
+    """Перенаправляет пользователя с короткой ссылки на страницу рецепта."""
+    get_object_or_404(Recipe, id=pk)
+    return redirect(f'/recipes/{pk}/')
