@@ -3,6 +3,7 @@
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.contrib.auth import get_user_model
 from django.db import models
+from django.db.models import Exists, OuterRef, Value
 
 from recipes.constants import (
     INGREDIENT_MIN_AMOUNT,
@@ -16,6 +17,33 @@ from recipes.constants import (
 )
 
 User = get_user_model()
+
+
+class RecipeQuerySet(models.QuerySet):
+    """QuerySet для аннотации рецептов флагами избранного и корзины."""
+
+    def annotate_with_flags(self, user):
+        """Добавляет к рецептам флаги избранного и корзины для пользователя."""
+        if user and user.is_authenticated:
+            Favorite = self.model._meta.apps.get_model('recipes', 'Favorite')
+            ShoppingCart = self.model._meta.apps.get_model(
+                'recipes', 'ShoppingCart'
+            )
+
+            return self.annotate(
+                is_favorited=Exists(
+                    Favorite.objects.filter(user=user, recipe=OuterRef('pk'))
+                ),
+                is_in_shopping_cart=Exists(
+                    ShoppingCart.objects.filter(
+                        user=user, recipe=OuterRef('pk')
+                    )
+                )
+            )
+        return self.annotate(
+            is_favorited=Value(False),
+            is_in_shopping_cart=Value(False)
+        )
 
 
 class Tag(models.Model):
@@ -73,6 +101,9 @@ class Ingredient(models.Model):
 class Recipe(models.Model):
     """Кулинарные рецепты пользователей."""
 
+    objects = models.Manager()
+
+    recipes_api = RecipeQuerySet.as_manager()
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,

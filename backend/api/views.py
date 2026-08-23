@@ -1,9 +1,9 @@
 """Представления API для управления рецептами и пользователями Foodgram."""
 
 from django.contrib.auth import get_user_model
-from django.db.models import Count, Exists, OuterRef, Prefetch, Sum
+from django.db.models import Count, Prefetch, Sum
 from django.http import HttpResponse
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
 from rest_framework import status, viewsets
@@ -68,27 +68,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
     filterset_class = RecipeFilter
 
     def get_queryset(self):
-        """Возвращает кверисет рецептов с аннотацией флагов."""
-        user = self.request.user
-        queryset = Recipe.objects.all()
-        authors_queryset = User.objects.all()
-        if user.is_authenticated:
-            authors_queryset = authors_queryset.annotate(
-                is_subscribed=Exists(
-                    Follow.objects.filter(user=user, author=OuterRef('pk'))
-                )
-            )
-            queryset = queryset.annotate(
-                is_favorited=Exists(
-                    Favorite.objects.filter(user=user, recipe=OuterRef('pk'))
-                ),
-                is_in_shopping_cart=Exists(
-                    ShoppingCart.objects.filter(
-                        user=user, recipe=OuterRef('pk')
-                    )
-                )
-            )
-
+        """Возвращает кверисет рецептов с аннотацией флагов через менеджер."""
+        queryset = Recipe.recipes_api.annotate_with_flags(self.request.user)
         if self.action in ('list', 'retrieve'):
             return queryset.select_related('author').prefetch_related(
                 'tags', 'recipe_ingredients__ingredient'
@@ -302,9 +283,3 @@ class FoodgramUserViewSet(UserViewSet):
         user.avatar = None
         user.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-def redirect_short_link(request, pk):
-    """Перенаправляет пользователя с короткой ссылки на страницу рецепта."""
-    get_object_or_404(Recipe, id=pk)
-    return redirect(f'/recipes/{pk}/')
